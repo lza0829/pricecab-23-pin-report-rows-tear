@@ -1,0 +1,8 @@
+[
+  {"sale_no": "S-1001", "sku_code": "SKU-TEA-001", "sold_at": "2026-11-16T08:10:00Z", "unit_price": 28.0, "qty": 2},
+  {"sale_no": "S-1002", "sku_code": "SKU-SNK-011", "sold_at": "2026-11-16T09:05:00Z", "unit_price": 12.5, "qty": 1},
+  {"sale_no": "S-1003", "sku_code": "SKU-DAY-021", "sold_at": "2026-11-16T10:20:00Z", "unit_price": 42.0, "qty": 1},
+  {"sale_no": "S-1004", "sku_code": "SKU-TEA-002", "sold_at": "2026-11-16T11:00:00Z", "unit_price": 68.0, "qty": 1},
+  {"sale_no": "S-1005", "sku_code": "SKU-FRZ-031", "sold_at": "2026-11-16T12:30:00Z", "unit_price": 22.8, "qty": 3},
+  {"sale_no": "S-1006", "sku_code": "SKU-SNK-012", "sold_at": "2026-11-16T13:45:00Z", "unit_price": 35.0, "qty": 2}
+]

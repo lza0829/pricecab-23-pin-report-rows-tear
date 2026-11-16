@@ -1,0 +1,10 @@
+[
+  {"sku_code": "SKU-TEA-001", "title": "茉莉花茶 250g", "category": "饮品", "list_price": 28.0},
+  {"sku_code": "SKU-TEA-002", "title": "红茶礼盒", "category": "饮品", "list_price": 68.0},
+  {"sku_code": "SKU-SNK-011", "title": "海苔脆片", "category": "零食", "list_price": 12.5},
+  {"sku_code": "SKU-SNK-012", "title": "坚果混合装", "category": "零食", "list_price": 39.9},
+  {"sku_code": "SKU-DAY-021", "title": "洗衣液 2L", "category": "日用", "list_price": 45.0},
+  {"sku_code": "SKU-DAY-022", "title": "抽纸 24 包", "category": "日用", "list_price": 32.0},
+  {"sku_code": "SKU-FRZ-031", "title": "速冻水饺", "category": "冷冻", "list_price": 22.8},
+  {"sku_code": "SKU-FRZ-032", "title": "冰淇淋杯装", "category": "冷冻", "list_price": 15.5}
+]
