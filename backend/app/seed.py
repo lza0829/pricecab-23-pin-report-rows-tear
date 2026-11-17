@@ -141,6 +141,34 @@ def init_schema(conn) -> None:
           reason TEXT NOT NULL,
           created_at TEXT NOT NULL
         );
+        -- 冻结对账报告：钉扎业务钟与水位的只读快照。钉扎行与报告头同事务物化，
+        -- 物化完成（materialized_at 非空且行数/计数互证一致）才允许 status='current'。
+        CREATE TABLE IF NOT EXISTS frozen_reports (
+          id INTEGER PRIMARY KEY,
+          report_no TEXT NOT NULL UNIQUE,
+          pinned_clock TEXT NOT NULL,
+          pin_watermark TEXT NOT NULL,
+          status TEXT NOT NULL,
+          sale_count INTEGER NOT NULL DEFAULT 0,
+          match_count INTEGER NOT NULL DEFAULT 0,
+          mismatch_count INTEGER NOT NULL DEFAULT 0,
+          missing_count INTEGER NOT NULL DEFAULT 0,
+          row_count INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          materialized_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS frozen_report_rows (
+          id INTEGER PRIMARY KEY,
+          report_id INTEGER NOT NULL REFERENCES frozen_reports(id) ON DELETE CASCADE,
+          sale_no TEXT NOT NULL,
+          sku_code TEXT NOT NULL,
+          sold_at TEXT NOT NULL,
+          unit_price REAL NOT NULL,
+          qty INTEGER NOT NULL,
+          expected_price REAL,
+          delta REAL,
+          status TEXT NOT NULL
+        );
         '''
     )
 

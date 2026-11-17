@@ -18,3 +18,8 @@ def freeze():
 @router.get("/{report_id}")
 def get_report(report_id: int):
     return svc.get_report(report_id)
+
+
+@router.post("/{report_id}/rematerialize")
+def rematerialize(report_id: int):
+    return svc.rematerialize(report_id)

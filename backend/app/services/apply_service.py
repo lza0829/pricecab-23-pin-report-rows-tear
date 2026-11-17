@@ -12,6 +12,7 @@ from app.repositories import prices as price_repo
 from app.repositories import batches as batch_repo
 from app.repositories import reconcile as recon_repo
 from app.seed import RECON_DEFAULTS
+from app.services import report_service
 from app.timeutil import norm_ts
 
 
@@ -66,8 +67,11 @@ def list_rejections() -> list[dict[str, Any]]:
 def apply_due() -> dict[str, Any]:
     """Apply all scheduled tickets whose effective_at <= business clock.
 
-    mismatch_policy=block 时，凡商品存在「窗内未处置不一致」旗标，
-    其所在改价单整单暂缓（保持 scheduled），被拦行写入 apply_rejections 供互证。
+    mismatch_policy=block 时，拦改价只信两个已物化来源：
+      1. 窗内未处置不一致旗标（窗对账报告落库时同事务建立）；
+      2. 现行冻结对账报告的钉扎不一致行——且该报告必须物化互证通过
+         （current_trusted_report），未物化/互证不一致的报告不驱动拦改价。
+    被拦商品所在改价单整单暂缓（保持 scheduled），被拦行写入 apply_rejections 供互证。
     """
     conn = connect(immediate=True)
     try:
@@ -92,12 +96,22 @@ def apply_due() -> dict[str, Any]:
             }
 
         open_flags = recon_repo.open_flag_map(conn) if mismatch_policy == "block" else {}
+        # 拦改价读报告入口：只读「现行且物化互证通过」的冻结报告钉扎行，
+        # 不读报告头计数；物化未完成/互证不一致的报告在此视同不存在。
+        frozen = report_service.current_trusted_report(conn) if mismatch_policy == "block" else None
+        frozen_mismatch: dict[str, str] = {}
+        if frozen:
+            for row in frozen["rows"]:
+                if row["status"] == "mismatch":
+                    frozen_mismatch.setdefault(row["sku_code"], frozen["report_no"])
 
         applicable: list[dict[str, Any]] = []
         held: list[dict[str, Any]] = []
         for t in due:
             lines = ticket_repo.list_lines(conn, t["id"])
-            blocked_skus = sorted({l["sku_code"] for l in lines if l["sku_code"] in open_flags})
+            blocked_skus = sorted(
+                {l["sku_code"] for l in lines if l["sku_code"] in open_flags or l["sku_code"] in frozen_mismatch}
+            )
             if blocked_skus:
                 held.append({"ticket": t, "lines": lines, "blocked_skus": blocked_skus})
             else:
@@ -137,11 +151,16 @@ def apply_due() -> dict[str, Any]:
             t, lines = item["ticket"], item["lines"]
             for line in lines:
                 sku = line["sku_code"]
-                if sku not in open_flags:
+                if sku not in open_flags and sku not in frozen_mismatch:
                     continue
+                sources = []
+                if sku in open_flags:
+                    sources.append(f"{sku} 存在窗内未处置不一致（旗标#{open_flags[sku]}）")
+                if sku in frozen_mismatch:
+                    sources.append(f"{sku} 在现行冻结对账报告{frozen_mismatch[sku]}中钉扎为不一致行")
                 reason = (
-                    f"{sku} 存在窗内未处置不一致（旗标#{open_flags[sku]}），"
-                    f"按策略禁止应用到期改价，改价单 {t['ticket_no']} 整单暂缓"
+                    "；".join(sources)
+                    + f"，按策略禁止应用到期改价，改价单 {t['ticket_no']} 整单暂缓"
                 )
                 batch_repo.add_rejection(
                     conn,
@@ -170,6 +189,7 @@ def apply_due() -> dict[str, Any]:
             "batch_no": batch_no,
             "business_clock": clock,
             "mismatch_policy": mismatch_policy,
+            "frozen_report_no": frozen["report_no"] if frozen else None,
             "ticket_count": len(applied_tickets),
             "line_count": line_total,
             "tickets": applied_tickets,

@@ -71,3 +71,21 @@ def price_at(conn: sqlite3.Connection, sku_code: str, at: str) -> float | None:
         (sku_code, at),
     ).fetchone()
     return float(row["price"]) if row else None
+
+
+def price_at_known(conn: sqlite3.Connection, sku_code: str, at: str, known_at: str) -> float | None:
+    """钉扎时刻 as-of：只用 recorded_at <= known_at 时已存在的价签历史。
+
+    冻结后补录的溯及价签（effective_at 早于钉扎、recorded_at 晚于钉扎）
+    不得回流进已钉扎报告——这是钉扎行与钉扎时刻同源的保证。
+    """
+    row = conn.execute(
+        '''
+        SELECT price FROM price_history
+        WHERE sku_code=? AND effective_at <= ? AND recorded_at <= ?
+        ORDER BY effective_at DESC, id DESC
+        LIMIT 1
+        ''',
+        (sku_code, at, known_at),
+    ).fetchone()
+    return float(row["price"]) if row else None

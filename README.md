@@ -28,11 +28,22 @@ docker compose up --build
 - 对账报告只写不改：改窗后历史报告分桶计数不变，新对账按新窗重算。
 - 互证：报告排除数/窗内一致/不一致、旗标、拦改价拒绝原因、价签本可交叉核对（仪表盘汇总）。
 
+## 冻结对账报告（钉扎行物化收口）
+
+`POST /api/reports/freeze` 以当前业务钟钉扎一份全量对账报告（`FR-####`），全局只贯彻一种收口：**以钉扎时刻历史 as-of 物化钉扎行并冻结**。
+
+- **钉扎同源**：只纳入 `sold_at <= 钉扎水位` 的成交；期望价取钉扎时刻可见的价签历史（`recorded_at <= 钉扎时刻`），冻结后补录的溯及价签不回流。头部计数与钉扎行同一批算出、同事务落库。
+- **物化完成才标现行**：报告头先以 `materializing` 与全部钉扎行同事务写入，物化落账后才置 `current` 并退位旧现行（`superseded`）；失败整体回滚，不存在「行写一半、头已标成功」。
+- **打开只读钉扎行**：`GET /api/reports/{id}` 禁止按现行价签现场重算，两次打开完全一致；响应带 `materialized`/`current` 互证标记（行数、分桶计数与头部一致才为真）。
+- **拦改价读报告入口**：`block` 策略下，现行且物化互证通过的冻结报告的钉扎不一致行与未处置旗标共同拦下该商品的到期改价（拒绝原因引用报告号）；物化未完成或互证失败的报告不驱动拦改价。
+- **分叉收口**：钉扎行缺失/被篡改时，`POST /api/reports/{id}/rematerialize` 按该报告自己的钉扎时刻 as-of 重建钉扎行并冻结；修复不授予现行资格。
+
 ## 验证
 
 ```bash
 # 另起终端：DATA_DIR=/tmp/pricecab-data uvicorn app.main:app --port 10600（backend/ 目录下）
 python3 tests/e2e_recon_window.py http://localhost:10600
+python3 tests/e2e_frozen_report.py http://localhost:10600 /tmp/pricecab-data/pricecab.db
 ```
 
 ## 技术栈
